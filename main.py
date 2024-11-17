@@ -1,6 +1,12 @@
+from family_columns_to_rows import FamilyDataProcessor
 # 0 Открівваем файл
-if __name__ == "main":
-    pass
+
+# Пример использования
+if __name__ == "__main__":
+    # Укажите путь к вашему файлу
+    processor = FamilyDataProcessor('WINTARIZATION Total1.xlsx')
+    processor.distribute_family_members()
+    total_families_df = processor.get_result_df()
 
 # 1 Семьи в строки
 # 2 Находим дубли внутри таблицы
