@@ -48,19 +48,14 @@ class FamilyDataProcessor:
                 # Сохраняем общие данные семьи (первые 22 колонки)
                 common_data = row[:22].tolist()
                 new_rows.append(common_data)  # Добавляем новую строку в список с общими данными
-                # print(f"new_member_data (длина: {len(common_data)}): {common_data}")
+
                 print(f"common_data (длина: {len(common_data)}): {common_data}")
-                print(f"{row}")
 
                 # Проверяем наличие дополнительных членов семьи
-                for i in range(0, 5):  # Предполагаем, что максимум 5 дополнительных членов
-                    index = "" if i == 0 else "." + str(i)
-                    index_plus_one = "." + str(i + 1)
-                    if pd.notna(
-                            row.get(f'Додати члена сімʼї що перебуває зараз Грузії{index}')):
-                        print(f"Додати члена сімʼї що перебуває зараз Грузії{index}")
-
-
+                for i in range(1, 6):  # Предполагаем, что максимум 5 дополнительных членов
+                    index = "" if i == 1 else "." + str(i-1)
+                    index_plus_one = "." + str(i)
+                    if row.get(f'Додати члена сімʼї що перебуває зараз Грузії{index}') == 'Так':
                         # Создаем новую строку для каждого дополнительного члена
                         new_member_data = common_data[:7]  # Копируем общие данные в колонках c 0 до 6
 
@@ -80,27 +75,6 @@ class FamilyDataProcessor:
                         new_member_data.extend(common_data[16:])
                         print(f"new_member_data (длина: {len(common_data)}): {common_data}")
                         new_rows.append(new_member_data)  # Добавляем новую строку в список
-                        """
-                        7	        8	    9	    10	                11	        12	        13	        14	        15
-                        Kotovska 	Olha 	Жінка	Закордонний Паспорт	GA723659	25.09.1982	12.03.2022	Українець	Так, з інвалідністю чи обмеженими можливостями або тяжко хворий, Так, одинока мати/ бактько, що самостійно виховує неповнолітніх дітей
-                        """
-                        # new_member_data[7] = row.get(f'Прізвище (за паспортом){index_plus_one}')
-                        # new_member_data[8] = row.get(f'Імʼя (за паспортом){index_plus_one}'),
-                        # new_member_data[9] = row.get(f'Стать{index_plus_one}'),
-                        # new_member_data[10] = row.get(
-                        #     f'Оберіть закордонний паспорт члена родини. В разі відсутності вкажіть інший документ{index}'),
-                        # new_member_data[11] = row.get(
-                        #     f'Серія та номер закордонного паспорту або іншого ідентифікаційного документу члена родини{index}'),
-                        # new_member_data[12] = row.get(f'Дата народження{index_plus_one}'),
-                        # new_member_data[13] = row.get(f'Дата приїзду до Грузії{index_plus_one}'),
-                        # new_member_data[14] = row.get(f'Громадянство{index_plus_one}'),
-                        # new_member_data[15] = row.get(f'Чи відноситься цей член родини до однієї з груп вразливості?{index}')
-
-                    # else:
-                        # if len(new_member_data) > 22:
-
-
-
 
         # Создаем новый DataFrame для новых строк
         new_df = pd.DataFrame(new_rows)
