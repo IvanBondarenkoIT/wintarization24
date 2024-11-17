@@ -76,11 +76,14 @@ class FamilyDataProcessor:
                         new_rows.append(new_member_data)  # Добавляем новую строку в список
 
         # Создаем новый DataFrame для новых строк
-        new_df = pd.DataFrame(new_rows)
+        self.new_df = pd.DataFrame(new_rows)
         print(f"Обработка вкладки '{sheet_name}' завершена. Добавлено {len(new_rows)} новых строк.")
 
         # Сохраняем результат в новый файл Excel
         # Сохраняем результат в один файл
         print("Сохраняем данные в файл 'processed_family_data.xlsx'...")
-        new_df.to_excel('processed_family_data.xlsx', index=False)
+        self.new_df.to_excel('processed_family_data.xlsx', index=False)
         print("Данные успешно обработаны и сохранены в 'processed_family_data.xlsx'.")
+
+    def get_result_df(self):
+        return self.new_df
