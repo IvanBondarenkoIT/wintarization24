@@ -42,7 +42,6 @@ class FamilyDataProcessor:
 
             print(f"Обрабатываем вкладку: {sheet_name} (количество строк: {len(df)})")
 
-
             # Проходим по каждой строке (семье) в DataFrame текущей вкладки
             for index, row in df.iterrows():
                 # Сохраняем общие данные семьи (первые 22 колонки)
@@ -79,29 +78,9 @@ class FamilyDataProcessor:
         # Создаем новый DataFrame для новых строк
         new_df = pd.DataFrame(new_rows)
         print(f"Обработка вкладки '{sheet_name}' завершена. Добавлено {len(new_rows)} новых строк.")
-        # , columns=[
-        #     'Позначка часу', 'Електронна адреса', 'Телефон Український', 'Телефон Грузинський',
-        #     'Місто або населений пункт в якому мешкаєте в Грузії', 'Адреса, за якою мешкаєте в Грузії',
-        #     'Кількість осіб в сім\'ї', 'Прізвище', 'Імʼя', 'Стать',
-        #     'Оберіть закордонний паспорт', 'Серія та номер закордонного паспорту',
-        #     'Дата народження', 'Дата приїзду до Грузії', 'Громадянство',
-        #     'Чи відноситесь Ви до однієї з груп вразливості'
-        # ])
-
-            # Объединяем оригинальный DataFrame с новыми строками
-        # final_df = pd.concat([df, new_df], ignore_index=True)
-
-
-            # Сохраняем обработанный DataFrame в словарь
-        # processed_sheets[sheet_name] = final_df
 
         # Сохраняем результат в новый файл Excel
         # Сохраняем результат в один файл
         print("Сохраняем данные в файл 'processed_family_data.xlsx'...")
         new_df.to_excel('processed_family_data.xlsx', index=False)
-        # print("Сохраняем данные в файл 'processed_family_data.xlsx'...")
-        # with pd.ExcelWriter('processed_family_data.xlsx') as writer:
-        #     for sheet_name, processed_df in processed_sheets.items():
-        #         processed_df.to_excel(writer, sheet_name=sheet_name, index=False)
-
         print("Данные успешно обработаны и сохранены в 'processed_family_data.xlsx'.")
