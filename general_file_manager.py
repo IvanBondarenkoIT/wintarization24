@@ -76,4 +76,65 @@ class ExcelDataMatcher:
         except Exception as e:
             raise ValueError(f"Ошибка при сохранении файла '{output_file}': {e}")
 
+    def get_base_df(self):
+        return self.base_df
+
+
+class DataFrameProcessor:
+    def __init__(self, base_df, comparison_df):
+        self.base_df = base_df
+        self.comparison_df = comparison_df
+
+    def compare_and_add_columns(self, base_columns, comparison_columns):
+        """
+        Сравнивает строки между base_df и comparison_df по указанным колонкам.
+        Возвращает строки из comparison_df, которые не нашли совпадений в base_df.
+        """
+        base_subset = self.base_df[base_columns].astype(str)
+        comparison_subset = self.comparison_df[comparison_columns].astype(str)
+
+        unmatched_mask = ~comparison_subset.apply(tuple, axis=1).isin(base_subset.apply(tuple, axis=1))
+        unmatched_rows = self.comparison_df[unmatched_mask]
+        print(f"Количество несовпадающих строк: {unmatched_rows.shape[0]}{unmatched_rows}")
+        return unmatched_rows
+
+    def handle_unmatched_rows(self, unmatched_rows, column_mapping, output_file):
+        """
+        Обрабатывает строки из unmatched_rows, создаёт новый DataFrame в формате base_df.
+        Сохраняет результат в указанный файл.
+        """
+        # Создаём DataFrame с той же структурой, что и base_df
+        new_rows = pd.DataFrame(columns=self.base_df.columns)
+
+        for _, row in unmatched_rows.iterrows():
+            new_row = {}
+
+            for base_col, comp_col in column_mapping.items():
+                comp_col_int = int(comp_col)  # Приводим comp_col к числу
+                print(f"base_col:{base_col}", f"comp_col:{comp_col_int}")
+                print(unmatched_rows.columns)
+                print(f"Checking comp_col: {comp_col_int} ({type(comp_col_int)}) in columns: {list(unmatched_rows.columns)}")
+                if comp_col_int in unmatched_rows.columns:
+
+                    print(f"added comp_col:{comp_col_int}")
+                    new_row[base_col] = row[comp_col_int]
+                else:
+                    print(f"not found comp_col:{comp_col_int} in unmatched_rows:{unmatched_rows}")
+                    new_row[base_col] = ""  # Если колонка отсутствует в comparison_df
+            new_rows = pd.concat([new_rows, pd.DataFrame([new_row])], ignore_index=True)
+
+        # Сохраняем в файл
+        new_rows.to_excel(output_file, index=False)
+        print(f"Обработанные строки сохранены в файл: {output_file}")
+
+    @staticmethod
+    def map_columns(base_df, comparison_df):
+        """
+        Выводит сопоставление колонок base_df и comparison_df для настройки.
+        """
+        print("Колонки из base_df:")
+        print(list(base_df.columns))
+        print("\nКолонки из comparison_df:")
+        print(list(comparison_df.columns))
+
 
