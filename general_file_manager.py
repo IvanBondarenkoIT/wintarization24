@@ -1,5 +1,65 @@
 import pandas as pd
+import re  # Для работы с регулярными выражениями
+import logging
 
+
+NEW_UT_COLUMN_MAPPING = {
+            4: {  # Например, колонка "CityinGeorgia"
+                "Тбілісі": "Tbilisi",
+                "Руставі": "Rustavi",
+                "Батумі": "Batumi",
+                "Кутаїсі": "Kutaisi",
+                "Кобулеті": "Kobuleti",
+                "Поті": "Poti",
+                "Горі": "Gori",
+                "Чакві": "Chakvi",
+                "Зугдіді": "Zugdid",
+            },
+            9: {  # Например, колонка "Gender"
+                "Чоловік": "Male",
+                "Жінка": "Female"
+            },
+
+            10: {  # Например, колонка "Document"
+                "Закордонний Паспорт": "International Passport",
+                "Український внутрішній паспорт": "Internal Passport",
+                "Свидетельство о рождении": "Birth Certificate"
+            },
+            14: {  # Например, колонка "Citizenship"
+                "Українець": "Ukrainian",
+                "Грузин": "Georgian",
+            },
+            15: {  # "Чи відноситесь Ви до однієї з груп вразливості?"
+                "Родина з дитиною від 0 до 5 років включно": "K",
+                "Так, з інвалідністю чи обмеженими можливостями або тяжко хворий": "A",
+                "Так, старше 60 років": "B",
+                "Так, багатодітна родина": "C",
+                "Так, одинока мати/ бактько, що самостійно виховує неповнолітніх дітей": "D",
+                "Ні": "E",
+            },
+
+        }
+
+# {
+#             "phone ukr": "2",
+#             "georgian phone": "3",
+#             "CityinGeorgia": "4",
+#             "Adress in Georgia": "5",
+#             "Surname": "7",
+#             "Name": "8",
+#             "Gender": "9",
+#             "Document type": "10",
+#             "Numberdoc": "11",
+#
+#             "Date of birth": "12",
+#             "Date of arrival": "13",
+#             "Citizenship": "14",
+#
+#             "bank": "17",
+#             "iban": "18",
+#
+#             # Добавьте остальные пары
+#         }
 
 class ExcelDataMatcher:
     """
@@ -23,58 +83,128 @@ class ExcelDataMatcher:
         except Exception as e:
             raise ValueError(f"Ошибка при загрузке файла '{base_file}': {e}")
 
-    def compare_and_add_columns(self, comparison_df, base_columns, comparison_columns, output_file):
+    # Настраиваем логирование
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+    import logging
+    import re
+
+    # Настраиваем логирование
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+    import logging
+    import re
+
+    # Настраиваем логирование
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+    import logging
+    import re
+
+    # Настраиваем логирование
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+    import re
+
+    def compare_and_update_statuses(self, comparison_df, output_file, unmatched_file):
         """
-        Сравнивает базовый DataFrame с переданным DataFrame и добавляет колонки на основе совпадений.
-
-        Параметры:
-            comparison_df (pd.DataFrame): DataFrame для сравнения.
-            base_columns (list): Названия колонок в base_df для сравнения.
-            comparison_columns (list): Индексы или названия колонок в comparison_df для сравнения.
-            output_file (str): Имя выходного файла для сохранения результата.
-
-        Возвращает:
-            None: Результат сохраняется в указанный файл.
+        Обновляет статусы в базовом DataFrame на основе совпадений с comparison_df.
+        Создает новую колонку "Новая Анкета" с статусом "подано" для совпадающих ID.
+        Сохраняет значения ненайденных ID в отдельный файл (unmatched_file).
         """
-        # Преобразуем индексы в названия колонок для comparison_df
-        comparison_columns = [
-            comparison_df.columns[i] if isinstance(i, int) else i for i in comparison_columns
-        ]
+        # Приведение базового DataFrame к строковому типу и обработка пустых значений
+        base_df_copy = self.base_df.copy()
 
-        # Проверяем наличие указанных колонок в обоих DataFrame
-        missing_columns_base = [col for col in base_columns if col not in self.base_df.columns]
-        missing_columns_comparison = [
-            col for col in comparison_columns if col not in comparison_df.columns
-        ]
+        # Преобразуем все ID в числовые значения (оставляем только цифры)
+        base_df_copy["id_clean"] = base_df_copy["id"].str.extract(r'(\d+)').fillna("").astype(str)
+        comparison_df_copy = comparison_df.copy()
+        comparison_df_copy["id_clean"] = comparison_df_copy["id"].str.extract(r'(\d+)').fillna("").astype(str)
 
-        if missing_columns_base:
-            raise ValueError(f"Отсутствующие колонки в base_df: {missing_columns_base}")
-        if missing_columns_comparison:
-            raise ValueError(f"Отсутствующие колонки в comparison_df: {missing_columns_comparison}")
+        # Получаем список ID для обновления
+        ids_to_update = set(comparison_df_copy["id_clean"])
 
-        # Выполняем слияние для поиска совпадений
-        print("Начинаем поиск совпадений...")
-        merged_df = self.base_df.merge(
-            comparison_df[comparison_columns],  # Сужаем comparison_df до необходимых колонок
-            left_on=base_columns,
-            right_on=comparison_columns,
-            how="left",
-            indicator=True
-        )
+        # Создаем DataFrame для строк, у которых нет совпадений
+        unmatched_df = comparison_df_copy[~comparison_df_copy["id_clean"].isin(base_df_copy["id_clean"])]
 
-        # Добавляем новые столбцы
-        merged_df["Анкета"] = merged_df["_merge"].apply(lambda x: "подано" if x == "both" else "")
-        merged_df["Win2024"] = merged_df["_merge"].apply(lambda x: "на рассмотрении" if x == "both" else "")
+        # Логирование процесса сравнения
+        print("Процесс сравнения ID:")
+        for comparison_id in comparison_df_copy["id_clean"]:
+            base_match = comparison_id in base_df_copy["id_clean"].values
+            print(f"Сравниваем ID: {comparison_id} -> Совпадение: {base_match}")
 
-        # Убираем служебный столбец "_merge"
-        merged_df.drop(columns=["_merge"], inplace=True)
+        # Создаем новую колонку "Новая Анкета" и проставляем "подано" для совпадающих ID
+        base_df_copy["Новая Анкета"] = base_df_copy["Анкета"]  # Копируем старые значения
+        base_df_copy.loc[base_df_copy["id_clean"].isin(ids_to_update), "Новая Анкета"] = "подано"
 
-        # Сохраняем результат в указанный файл
+        # Убираем временный столбец id_clean
+        base_df_copy.drop(columns=["id_clean"], inplace=True)
+
+        # Сохраняем базовый DataFrame с обновленными статусами
         try:
-            merged_df.to_excel(output_file, index=False)
+            base_df_copy.to_excel(output_file, index=False)
             print(f"Результаты сохранены в файл '{output_file}'.")
         except Exception as e:
             raise ValueError(f"Ошибка при сохранении файла '{output_file}': {e}")
+
+        # Сохраняем unmatched_df
+        try:
+            unmatched_df.drop(columns=["id_clean"], inplace=True)  # Убираем вспомогательный столбец
+            unmatched_df.to_excel(unmatched_file, index=False)
+            print(f"Несовпавшие ID сохранены в файл '{unmatched_file}'.")
+        except Exception as e:
+            raise ValueError(f"Ошибка при сохранении файла '{unmatched_file}': {e}")
+
+        self.synchronize_statuses(output_file)
+
+    def synchronize_statuses(self, output_file):
+        """
+        Пробегает по результирующему файлу и для всех строк с одинаковым значением в колонке 'ut',
+        где в колонке 'Новая Анкета' стоит статус 'подано', проставляет 'подано' во всех строках с таким же 'ut'.
+        """
+        # Загружаем DataFrame из файла
+        base_df_copy = pd.read_excel(output_file)
+
+        # Находим все строки, у которых в "Новая Анкета" статус "подано"
+        ut_with_submitted = base_df_copy[base_df_copy["Новая Анкета"] == "подано"]["ut"].unique()
+
+        # Обновляем статус "Новая Анкета" для всех строк с совпадающим ut
+        base_df_copy.loc[base_df_copy["ut"].isin(ut_with_submitted), "Новая Анкета"] = "подано"
+
+        # Сохраняем обновленный DataFrame обратно в файл
+        try:
+            base_df_copy.to_excel(output_file, index=False)
+            print(f"Статусы обновлены и результаты сохранены в файл '{output_file}'.")
+        except Exception as e:
+            raise ValueError(f"Ошибка при сохранении файла '{output_file}': {e}")
+
+    # def synchronize_statuses(self, df, id_column, status_columns):
+    #     """
+    #     Синхронизирует статусы для всех строк с одинаковым значением id.
+    #     Статусы обновляются только для строк, где они изначально пустые.
+    #     Группы, где все строки пустые, остаются без изменений.
+    #
+    #     Параметры:
+    #         df (pd.DataFrame): DataFrame для обработки.
+    #         id_column (str): Название колонки, содержащей идентификаторы (например, "id").
+    #         status_columns (list): Список колонок со статусами для синхронизации (например, ["Анкета", "Win2024"]).
+    #
+    #     Возвращает:
+    #         pd.DataFrame: Обновлённый DataFrame с синхронизированными статусами.
+    #     """
+    #     print("Синхронизация статусов...")
+    #
+    #     # Преобразуем пустые строки в NaN для корректной обработки
+    #     df[status_columns] = df[status_columns].replace("", None)
+    #
+    #     for col in status_columns:
+    #         # Найдём максимальный статус для каждой группы id
+    #         group_status = df.groupby(id_column)[col].transform(lambda x: x.bfill().ffill() if x.notna().any() else x)
+    #
+    #         # Только пустые значения получают статус из группы
+    #         df[col] = df[col].where(df[col].notna(), group_status)
+    #
+    #     print("Статусы успешно синхронизированы.")
+    #     return df
 
     def get_base_df(self):
         return self.base_df
@@ -84,6 +214,8 @@ class DataFrameProcessor:
     def __init__(self, base_df, comparison_df):
         self.base_df = base_df
         self.comparison_df = comparison_df
+
+        self.column_mappings = NEW_UT_COLUMN_MAPPING
 
     def compare_and_add_columns(self, base_columns, comparison_columns):
         """
@@ -111,21 +243,51 @@ class DataFrameProcessor:
 
             for base_col, comp_col in column_mapping.items():
                 comp_col_int = int(comp_col)  # Приводим comp_col к числу
-                print(f"base_col:{base_col}", f"comp_col:{comp_col_int}")
-                print(unmatched_rows.columns)
-                print(f"Checking comp_col: {comp_col_int} ({type(comp_col_int)}) in columns: {list(unmatched_rows.columns)}")
+                # print(f"base_col:{base_col}", f"comp_col:{comp_col_int}")
+                # print(unmatched_rows.columns)
+                # print(f"Checking comp_col: {comp_col_int} ({type(comp_col_int)}) in columns: {list(unmatched_rows.columns)}")
                 if comp_col_int in unmatched_rows.columns:
 
-                    print(f"added comp_col:{comp_col_int}")
-                    new_row[base_col] = row[comp_col_int]
+                    # print(f"added comp_col:{comp_col_int}")
+                    new_row[base_col] = self.rebuild_value_needed_format(column=comp_col_int, value=row[comp_col_int])
                 else:
-                    print(f"not found comp_col:{comp_col_int} in unmatched_rows:{unmatched_rows}")
+                    # print(f"not found comp_col:{comp_col_int} in unmatched_rows:{unmatched_rows}")
                     new_row[base_col] = ""  # Если колонка отсутствует в comparison_df
+
+            new_row["Анкета"] = "подано"
+            new_row["Win2024"] = "на рассмотрении"
+
             new_rows = pd.concat([new_rows, pd.DataFrame([new_row])], ignore_index=True)
 
         # Сохраняем в файл
         new_rows.to_excel(output_file, index=False)
         print(f"Обработанные строки сохранены в файл: {output_file}")
+
+    def rebuild_value_needed_format(self, column, value):
+        """
+        Проверяет значение и возвращает соответствующее значение из маппинга.
+        Если соответствие не найдено, пытается найти частичное совпадение.
+        """
+        print(f"column: {column}, value: {value}")
+        # Получаем маппинг для конкретной колонки
+        mappings = self.column_mappings.get(column, {})
+
+        # Приводим значение к единому формату
+        cleaned_value = str(value).strip().lower()
+
+        # Пробуем найти точное совпадение
+        normalized_mappings = {str(k).strip().lower(): v for k, v in mappings.items()}
+        if cleaned_value in normalized_mappings:
+            return normalized_mappings[cleaned_value]
+
+        # Если точного совпадения нет, ищем частичное совпадение
+        for key, mapped_value in normalized_mappings.items():
+            if key in cleaned_value:  # Проверяем, содержится ли часть строки
+                return mapped_value
+
+        # Если ничего не найдено, возвращаем оригинальное значение
+        return value
+
 
     @staticmethod
     def map_columns(base_df, comparison_df):
