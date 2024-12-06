@@ -87,86 +87,109 @@ class GeneralMatcherDateAndPhone:
     def match_by_date_of_birth(self, unmatched_df):
         """
         Второй этап: поиск совпадений по дате рождения.
-        Если найдено совпадение, переносим всю семью (по номеру телефона совпавшего)
-        в таблицу с совпадениями.
+        Если найдено совпадение, добавляем строку в результат совпадений.
+        Остальные строки перемещаются в несовпадения.
         """
         matched_rows = []
-        remaining_rows = unmatched_df.copy()  # Копируем для дальнейшей обработки
+        unmatched_rows = unmatched_df.copy()  # Копируем для дальнейшей обработки
 
         for _, row in unmatched_df.iterrows():
             unmatched_birth_date = row["birth_date"]
 
-            # Поиск совпадений по дате рождения
+            # Поиск совпадений по дате рождения в general_df
             matches = self.general_df[self.general_df["Date of birth"] == unmatched_birth_date]
 
             if not matches.empty:
-                # Для каждого найденного совпадения добавляем всю семью
+                # Если совпадение найдено, добавляем его в результат
                 for _, match in matches.iterrows():
-                    family_phone = match["georgian phone"]
+                    matched_row = row.copy()  # Копируем строку из unmatched_df
+                    matched_row["ut"] = match["ut"]
+                    matched_row["Surname"] = match["Surname"]
+                    matched_row["Name"] = match["Name"]
+                    matched_row["Matched By"] = f"Date of birth: {unmatched_birth_date}"
+                    matched_row["georgian_phone"] = match["georgian phone"]  # Добавляем номер телефона
+                    matched_rows.append(matched_row)
 
-                    # Приводим номер телефона к строке для индексации
-                    family_phone_str = str(family_phone)
-
-                    # Поиск всех членов семьи с тем же номером телефона
-                    family_matches = self.general_df[self.general_df["georgian phone"] == family_phone]
-
-                    for _, family_member in family_matches.iterrows():
-                        matched_row = row.copy()
-                        matched_row["ut"] = family_member["ut"]
-                        matched_row["Surname"] = family_member["Surname"]
-                        matched_row["Name"] = family_member["Name"]
-                        matched_row["Matched By"] = f"Date of birth: {unmatched_birth_date}, Phone: {family_phone_str[-6:]}"
-                        matched_row["georgian_phone"] = family_member["georgian phone"]  # Добавляем телефон
-                        matched_rows.append(matched_row)
-
-                    # Удаляем все строки с таким же номером телефона из оставшихся строк
-                    family_phone_mask = unmatched_df["georgian_phone_last6"] == str(family_phone)[-6:]
-                    remaining_rows = remaining_rows[~family_phone_mask]
+                # Убираем строку с совпавшей датой рождения из unmatched_df
+                unmatched_rows = unmatched_rows[unmatched_rows["birth_date"] != unmatched_birth_date]
 
         matched_df = pd.DataFrame(matched_rows)
-        return matched_df, remaining_rows
 
-    def clean_unmatched_by_phone(self, matched_df):
-        """
-        Удаляет из unmatched_df строки, которые имеют совпадающий номер телефона с теми, что в matched_df.
-        """
-        matched_phones = matched_df["georgian_phone"].unique()  # Получаем уникальные телефоны из совпавших
+        return matched_df, unmatched_rows
 
-        # Удаляем строки из unmatched_df, которые имеют совпадающие телефоны
-        self.unmatched_df = self.unmatched_df[~self.unmatched_df["georgian_phone"].isin(matched_phones)]
-
-    def match_and_save(self, matched_file, unmatched_file):
+    def process_final_matches(self, matched_df, unmatched_df):
         """
-        Выполняет оба этапа поиска и сохраняет результаты в файлы.
-
-        Параметры:
-            matched_file (str): Путь для сохранения совпадающих строк.
-            unmatched_file (str): Путь для сохранения несовпадающих строк.
+        Проверка совпадений в unmatched_df по georgian_phone_last6
+        и добавление ut в соответствующие строки.
         """
-        # Первый этап: поиск по номеру телефона
+        for idx, row in unmatched_df.iterrows():
+            unmatched_phone_last6 = row["georgian_phone_last6"]
+
+            phone_match = matched_df[matched_df["georgian_phone_last6"] == unmatched_phone_last6]
+
+            if not phone_match.empty:
+                unmatched_df.at[idx, "ut"] = phone_match.iloc[0]["ut"]
+
+        return unmatched_df
+
+    def match_and_save(self, matched_phone_file, unmatched_phone_file, matched_date_file, unmatched_date_file,
+                       final_unmatched_file):
+        """
+        Выполняет все этапы поиска и сохраняет результаты.
+        """
         matched_by_phone, unmatched_after_phone = self.match_by_phone()
 
-        # Второй этап: поиск по дате рождения
+        matched_by_phone.to_excel(matched_phone_file, index=False)
+        unmatched_after_phone.to_excel(unmatched_phone_file, index=False)
+
         matched_by_birth, unmatched_after_birth = self.match_by_date_of_birth(unmatched_after_phone)
 
-        # Объединяем все совпадения
-        matched_df = pd.concat([matched_by_phone, matched_by_birth], ignore_index=True)
+        matched_by_birth.to_excel(matched_date_file, index=False)
+        unmatched_after_birth.to_excel(unmatched_date_file, index=False)
 
-        # Чистим unmatched_df от строк с совпадающими номерами телефонов
-        self.clean_unmatched_by_phone(matched_df)
+        final_unmatched = self.process_final_matches(matched_by_birth, unmatched_after_birth)
 
-        # Объединяем все оставшиеся несовпадения
-        unmatched_df = self.unmatched_df
+        final_unmatched.to_excel(final_unmatched_file, index=False)
+        print(f"Финальный файл с несовпавшими сохранён: {final_unmatched_file}.")
 
-        # Сохраняем результаты
-        try:
-            matched_df.to_excel(matched_file, index=False)
-            print(f"Совпадения сохранены в файл: {matched_file}.")
-        except Exception as e:
-            raise ValueError(f"Ошибка при сохранении совпадающих строк: {e}")
-
-        try:
-            unmatched_df.to_excel(unmatched_file, index=False)
-            print(f"Несовпавшие строки сохранены в файл: {unmatched_file}.")
-        except Exception as e:
-            raise ValueError(f"Ошибка при сохранении несовпадающих строк: {e}")
+    # def match_and_save(self, matched_phone_file, unmatched_phone_file, matched_date_file, unmatched_date_file):
+    #     """
+    #     Выполняет оба этапа поиска и сохраняет результаты в файлы.
+    #
+    #     Параметры:
+    #         matched_phone_file (str): Путь для сохранения совпавших по телефону.
+    #         unmatched_phone_file (str): Путь для сохранения несовпавших по телефону.
+    #         matched_date_file (str): Путь для сохранения совпавших по дате рождения.
+    #         unmatched_date_file (str): Путь для сохранения несовпавших по всем критериям.
+    #     """
+    #     # Первый этап: поиск по номеру телефона
+    #     matched_by_phone, unmatched_after_phone = self.match_by_phone()
+    #
+    #     # Сохраняем результаты после первого этапа
+    #     try:
+    #         matched_by_phone.to_excel(matched_phone_file, index=False)
+    #         print(f"Совпадания по телефону сохранены в файл: {matched_phone_file}.")
+    #     except Exception as e:
+    #         raise ValueError(f"Ошибка при сохранении совпадений по телефону: {e}")
+    #
+    #     try:
+    #         unmatched_after_phone.to_excel(unmatched_phone_file, index=False)
+    #         print(f"Несовпавшие по телефону сохранены в файл: {unmatched_phone_file}.")
+    #     except Exception as e:
+    #         raise ValueError(f"Ошибка при сохранении несовпавших по телефону: {e}")
+    #
+    #     # Второй этап: поиск по дате рождения среди несовпавших по телефону
+    #     matched_by_birth, unmatched_after_birth = self.match_by_date_of_birth(unmatched_after_phone)
+    #
+    #     # Сохраняем результаты после второго этапа
+    #     try:
+    #         matched_by_birth.to_excel(matched_date_file, index=False)
+    #         print(f"Совпадания по дате рождения сохранены в файл: {matched_date_file}.")
+    #     except Exception as e:
+    #         raise ValueError(f"Ошибка при сохранении совпадений по дате рождения: {e}")
+    #
+    #     try:
+    #         unmatched_after_birth.to_excel(unmatched_date_file, index=False)
+    #         print(f"Несовпавшие по всем критериям сохранены в файл: {unmatched_date_file}.")
+    #     except Exception as e:
+    #         raise ValueError(f"Ошибка при сохранении несовпавших по всем критериям: {e}")

@@ -67,9 +67,22 @@ if __name__ == "__main__":
         unmatched_file = "excel_files/unmatched_general_base.xlsx"
         matched_output_file = "Matched_Rows.xlsx"
         unmatched_output_file = "Unmatched_Rows.xlsx"
+        # +++++++++++++++
+        matched_phone_file = "matched_by_phone.xlsx"
+        unmatched_phone_file = "unmatched_by_phone.xlsx"
+        matched_date_file = "matched_by_date.xlsx"
+        unmatched_date_file = "unmatched_by_date.xlsx"
+        final_unmatched_date_file = "final_unmatched_by_date.xlsx"
 
-        matcher = GeneralMatcherDateAndPhone(general_file, unmatched_file)
-        matcher.match_and_save(matched_output_file, unmatched_output_file)
+        # Создание объекта класса
+        matcher = GeneralMatcherDateAndPhone(general_file=general_file, unmatched_file=unmatched_file)
+
+        # Вызов метода с четырьмя файлами
+        matcher.match_and_save(matched_phone_file, unmatched_phone_file, matched_date_file, unmatched_date_file, final_unmatched_date_file)
+        # ---------------
+        #
+        # matcher = GeneralMatcherDateAndPhone(general_file, unmatched_file)
+        # matcher.match_and_save(matched_output_file, unmatched_output_file)
 
     if RUN_NEW_ROW_CREATOR:
         # total_families_df = pd.read_excel("excel_files/processed_family_data (2).xlsx")
