@@ -3,17 +3,22 @@ import pandas as pd
 from family_files_manager import FamilyDataProcessor
 from general_file_manager import ExcelDataMatcher
 from general_file_manager import DataFrameProcessor
+from general_update_module import MultiSheetExcelMatcher
+from searcher_by_date_and_phone import GeneralMatcherDateAndPhone
 
+RUN_WIN24_FAMILY_PROCESSOR = False # Обрабатываем таблицу с поданными формами на регистрацию в WIN24
+RUN_UT_SEEKER = False # Ищем совпадения в Генерале в processed_family_data нужно переименовать колонку "11" в "id", а в генерале колонка "Numberdoc" на 'id'
+RUN_DATE_AND_PHONE_MATCHER = True # Ищем совпадения в Генерале по дате рождения и номеру телефона колонку "3"-> georgian_phone и колонку "12"-> birth_date
+RUN_NEW_ROW_CREATOR = False # Создаем новые строки для переноса в Генерал
 
-RUN_WIN24_FAMILY_PROCESSOR = False
-RUN_UT_SEEKER = False
-RUN_NEW_ROW_CREATOR = True
+RUN_BILLS_CHECKER_UPDATER = False # Обновляем статусы в Генерал по результатам проверки IBAN
 
 
 LIST_OF_COLUMNS_TO_CHECK_DUPLICATES = [11]
-EXCEL_FAMILIES_FILE_PATH = "excel_files/WINTARIZATION Total1.xlsx"
+EXCEL_FAMILIES_FILE_PATH = "excel_files/WINTARIZATION_2024_3_06.xlsx"  # Путь к файлу с формами (добавить три колонки с банковскими данными)
 # EXCEL_FAMILIES_FILE_PATH = "excel_files/CASH3_Questionnaire of Ukrainians_ (Ответы).xlsx"
-EXCEL_GENERAL_FILE_PATH = "excel_files/General base (5).xlsx"
+EXCEL_GENERAL_FILE_PATH = "excel_files/General base (11).xlsx"  # Путь к файлу General последней версии
+EXCEL_WITH_RESULTS_OF_BILL_CHECKER_PATH = "excel_files/all bills checked.xlsx"  # Путь к файлу в котором проверенные IBAN от хресников
 GENERAL_FILE_SHEET_NAME = "ua"
 
 # Сравниваемые колонки
@@ -31,7 +36,8 @@ if __name__ == "__main__":
     # Загрузка данных
     if RUN_WIN24_FAMILY_PROCESSOR:
         # processor = FamilyDataProcessor('excel_files/WINTARIZATION Total1.xlsx')
-        processor = FamilyDataProcessor('excel_files/WINTARIZATION Total 27.xlsx')
+        # processor = FamilyDataProcessor('excel_files/WINTARIZATION_2024_3_06.xlsx')
+        processor = FamilyDataProcessor(EXCEL_FAMILIES_FILE_PATH)
         # processor = FamilyDataProcessor('excel_files/CASH3_Questionnaire of Ukrainians_ (Ответы).xlsx')
         processor.distribute_family_members()
         # 2 Находим дубли внутри таблицы
@@ -55,8 +61,15 @@ if __name__ == "__main__":
             unmatched_file="unmatched_general_base.xlsx"
         )
 
+    if RUN_DATE_AND_PHONE_MATCHER:
+        # Использование класса
+        general_file = EXCEL_GENERAL_FILE_PATH
+        unmatched_file = "excel_files/unmatched_general_base.xlsx"
+        matched_output_file = "Matched_Rows.xlsx"
+        unmatched_output_file = "Unmatched_Rows.xlsx"
 
-
+        matcher = GeneralMatcherDateAndPhone(general_file, unmatched_file)
+        matcher.match_and_save(matched_output_file, unmatched_output_file)
 
     if RUN_NEW_ROW_CREATOR:
         # total_families_df = pd.read_excel("excel_files/processed_family_data (2).xlsx")
@@ -86,7 +99,6 @@ if __name__ == "__main__":
 
             # Добавьте остальные пары
         }
-
         # Сравнение данных
         base_columns = GENERAL_COLUMNS
         comparison_columns = FAMILIES_COLUMNS
@@ -95,6 +107,9 @@ if __name__ == "__main__":
         # # Обрабатываем несовпадения
         new_rows_creator.handle_unmatched_rows(unmatched_rows, column_mapping, "new_unmatched_rows.xlsx")
 
+    if RUN_BILLS_CHECKER_UPDATER:
+        matcher = MultiSheetExcelMatcher(EXCEL_GENERAL_FILE_PATH, EXCEL_WITH_RESULTS_OF_BILL_CHECKER_PATH)
+        matcher.update_status("Updated-General.xlsx")
 
     # 4 Супики распределяют по хресникам
     # 5 Затягиваем в Генерал Хресников и обновляем им таблице

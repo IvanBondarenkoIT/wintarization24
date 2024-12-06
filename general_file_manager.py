@@ -86,26 +86,6 @@ class ExcelDataMatcher:
     # Настраиваем логирование
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-    import logging
-    import re
-
-    # Настраиваем логирование
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
-    import logging
-    import re
-
-    # Настраиваем логирование
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
-    import logging
-    import re
-
-    # Настраиваем логирование
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
-    import re
-
     def compare_and_update_statuses(self, comparison_df, output_file, unmatched_file):
         """
         Обновляет статусы в базовом DataFrame на основе совпадений с comparison_df.
